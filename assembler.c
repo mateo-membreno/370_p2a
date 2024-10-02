@@ -26,12 +26,13 @@
  * This function will be provided in an instructor object file once the
  * project 1a deadline + late days has passed.
 */
-// extern void print_inst_machine_code(FILE *inFilePtr, FILE *outFilePtr);
+extern void print_inst_machine_code(FILE *inFilePtr, FILE *outFilePtr);
 
 int readAndParse(FILE *, char *, char *, char *, char *, char *);
 static void checkForBlankLinesInCode(FILE *inFilePtr);
 static inline int isNumber(char *);
 static inline void printHexToFile(FILE *, int);
+
 
 
 // data structures
@@ -64,9 +65,13 @@ typedef struct {
 // helper functions
 void addToSymbolTable(char *label, char type, int address);
 void addToRelocationTable(int address, char *opcode, char *label);
+void addLabelToAllLabels(char *label, char allLabels[][10], int label_count);
+bool isDupeLabel(char *label, char allLabels[][10]);
 bool isDupeSymbol(char *label, Symbol *symbolTable);
 bool isDupeRelocation(char *label, Relocation *relocationTable);
-
+void printHeader(Header header, FILE *outFilePtr);
+void printSymbolTable(Symbol *symbolTable, Header header, FILE *outFilePtr);
+void printRelocationTable(Relocation *relocationTable, Header header, FILE *outFilePtr);
 
 
 int main(int argc, char **argv) {
@@ -78,6 +83,8 @@ int main(int argc, char **argv) {
     Symbol symbolTable[MAXLINELENGTH];
     Relocation relocationTable[MAXLINELENGTH];
     Header header = {0};
+    char allLabels[MAXLINELENGTH][10];
+    int label_count = 0;
     // my stuff end
     if (argc != 3) {
         printf("error: usage: %s <assembly-code-file> <machine-code-file>\n",
@@ -104,19 +111,33 @@ int main(int argc, char **argv) {
 
     // add stuff to initial data structures (relocation table, and symbol table, update header accordingly)
     while(readAndParse(inFilePtr, label, opcode, arg0, arg1, arg2)){
-        if (strcmp(label, "") != 0){
-
+        // if label exists
+            // add to label array
+            // make sure not duplicate
+            // add to symbol table if uppercase cause global
+            // ignore relocation table becasue were just looking at the label in the 1st col not 5th
+        if (strcmp(label, "")){
+            if(!isDupeLabel(label, allLabels)){
+                addLabelToAllLabels(label, allLabels, label_count);
+                if(!isDupeSymbol(label, symbolTable) && label[0] >= 'A' && label[0] <= 'Z'){
+                    addToSymbolTable(label, 'U', 0);
+                }
+            } else {
+                exit(1);
+            }
+            label_count++;
         }
         // if lw or sw
-            // add to relocation table if relative adress
+            // add to relocation table if relative adress (is NOT a number)
             // add to symbol table if uppercase cause global
             //check duplicates right before adding
             // adress kept track of in header.text_size bec this is list of instructions
-        if (strcmp(opcode, "lw") == 0 || strcmp(opcode, "sw") == 0) {
-            if(!isDupeSymbol(label, symbolTable) && arg0[0] >= 'A' && arg0[0] <= 'Z'){
-                addToSymbolTable(label, 'U', 0); // temporary U and 0
+            // looking at 5th col
+        if ((!strcmp(opcode, "lw") || !strcmp(opcode, "sw")) && !isNumber(arg2)) {
+            if(!isDupeSymbol(arg2, symbolTable) && arg0[0] >= 'A' && arg0[0] <= 'Z'){
+                addToSymbolTable(arg2, 'U', 0); // temporary U and 0
             }
-            if(!isDupeRelocation(label, relocationTable)){
+            if(!isDupeRelocation(arg2, relocationTable)){
                 addToRelocationTable(header.text_size, opcode, arg2);
             }
         }
@@ -125,11 +146,12 @@ int main(int argc, char **argv) {
             // add to symbol table if uppercase cause global
             // check duplicates right before adding
             // adress in header.data_size bec it keeps track of variables
+            // looking at 3rd col and 1st
         if (!strcmp(opcode, ".fill") && !isNumber(arg0)) {
-            if(!isDupeSymbol(label, symbolTable) && arg0[0] >= 'A' && arg0[0] <= 'Z'){
-                addToSymbolTable(label, 'U', 0); // temporary U and 0
+            if(!isDupeSymbol(arg0, symbolTable) && arg0[0] >= 'A' && arg0[0] <= 'Z'){
+                addToSymbolTable(arg0, 'U', 0); // temporary U and 0
             }
-            if(!isDupeRelocation(label, relocationTable)){
+            if(!isDupeRelocation(arg0, relocationTable)){
                 addToRelocationTable(header.data_size, opcode, arg0);
             }
 
@@ -141,12 +163,27 @@ int main(int argc, char **argv) {
         } else {
             header.text_size++;
         }
-
-
-
     }
 
+    // for symbol i in symbol table
+        // for label j in allLabels
+            // if match 
+                // found match = true
+                // if j >= text_size set sybol table i to curr, D, j - text_size
+                // else set symbol table i to curr, T, j
+ 
+
+
+    printHeader(header, outFilePtr);
     // generate machine code? from p1a not sure how to use obj file
+    // print machine code
+    rewind(inFilePtr);
+    print_inst_machine_code(inFilePtr, outFilePtr);
+
+
+    printSymbolTable(symbolTable, header, outFilePtr);
+    printRelocationTable(relocationTable, header, outFilePtr);
+
 
 
 
@@ -177,7 +214,7 @@ int main(int argc, char **argv) {
     rewind(inFilePtr);
 
     /* this will print the correct machine code for the file */
-    //print_inst_machine_code(inFilePtr, outFilePtr);
+    print_inst_machine_code(inFilePtr, outFilePtr);
 
     /* here is an example of using isNumber. "5" is a number, so this will
        return true */
@@ -199,6 +236,14 @@ void addToRelocationTable(int address, char *opcode, char *label){
     //FILL
 
 }
+void addLabelToAllLabels(char *label, char allLabels[][10], int label_count){
+    strcpy(allLabels[label_count], label);
+}
+
+bool isDuplicateLabel(char *label, char **allLabels){
+    //FILL
+    return false;
+}
 
 bool isDupeSymbol(char *label, Symbol *symbolTable){
     // FILL
@@ -209,6 +254,23 @@ bool isDupeRelocation(char *label, Relocation *relocationTable){
     // FILL
     return false;
 } 
+void printHeader(Header header, FILE *outFilePtr){
+    fprintf(outFilePtr, "%d %d %d %d\n", header.text_size, header.text_size, header.symbol_table_size, header.relocation_tablesize);
+}
+
+void printSymbolTable(Symbol *symbolTable, Header header, FILE *outFilePtr){
+    for(int i = 0; i < header.symbol_table_size; i++){
+        fprintf(outFilePtr, "%s %c %d\n", symbolTable[i].label, symbolTable[i].type, symbolTable[i].address);
+    }
+}
+
+void printRelocationTable(Relocation *relocationTable, Header header, FILE *outFilePtr){
+    for(int i = 0; i < header.relocation_tablesize; i++){
+        fprintf(outFilePtr, "%d %s %s\n", relocationTable[i].address, relocationTable[i].opcode, relocationTable[i].label);
+    }
+}
+
+
 
 // my fucs end
 
