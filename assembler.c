@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
         // if .fill
             // add to relocation table if relative adress
             // add to symbol table if uppercase cause global
-
+    
 
 
     }
