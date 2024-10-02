@@ -34,7 +34,6 @@ static inline int isNumber(char *);
 static inline void printHexToFile(FILE *, int);
 
 
-
 // data structures
 // header
 typedef struct{
@@ -44,26 +43,42 @@ typedef struct{
     int relocation_tablesize;
 } Header;
 
-// text?
+// text? - done by p1a
 
-// data?
+// data? - done by p1a
 
-// symbol table
+// symbol table -- need to pass over again to know what the type is
+typedef struct { 
+    char label[10]; // i think max is 6 but not sure
+    char type;
+    int address;
+} Symbol;
 
-// relocation table
-
+// relocation table - can add this on first pass
+typedef struct {
+    int address;
+    char opcode[10];
+    char label[10];
+} Relocation;
 
 // helper functions
-// add to symbol table
+void addToSymbolTable(char *label, char type, int address);
+void addToRelocationTable(int address, char *opcode, char *label);
+bool isDupeSymbol(char *label, Symbol *symbolTable);
+bool isDupeRelocation(char *label, Relocation *relocationTable);
 
-// add to relocation table
+
 
 int main(int argc, char **argv) {
     char *inFileStr, *outFileStr;
     FILE *inFilePtr, *outFilePtr;
     char label[MAXLINELENGTH], opcode[MAXLINELENGTH], arg0[MAXLINELENGTH],
             arg1[MAXLINELENGTH], arg2[MAXLINELENGTH];
-
+    // my stuff
+    Symbol symbolTable[MAXLINELENGTH];
+    Relocation relocationTable[MAXLINELENGTH];
+    Header header = {0};
+    // my stuff end
     if (argc != 3) {
         printf("error: usage: %s <assembly-code-file> <machine-code-file>\n",
             argv[0]);
@@ -89,15 +104,44 @@ int main(int argc, char **argv) {
 
     // add stuff to initial data structures (relocation table, and symbol table, update header accordingly)
     while(readAndParse(inFilePtr, label, opcode, arg0, arg1, arg2)){
+        if (strcmp(label, "") != 0){
 
+        }
         // if lw or sw
             // add to relocation table if relative adress
             // add to symbol table if uppercase cause global
-
+            //check duplicates right before adding
+            // adress kept track of in header.text_size bec this is list of instructions
+        if (strcmp(opcode, "lw") == 0 || strcmp(opcode, "sw") == 0) {
+            if(!isDupeSymbol(label, symbolTable) && arg0[0] >= 'A' && arg0[0] <= 'Z'){
+                addToSymbolTable(label, 'U', 0); // temporary U and 0
+            }
+            if(!isDupeRelocation(label, relocationTable)){
+                addToRelocationTable(header.text_size, opcode, arg2);
+            }
+        }
         // if .fill
-            // add to relocation table if relative adress
+            // add to relocation table if relative adress 
             // add to symbol table if uppercase cause global
-    
+            // check duplicates right before adding
+            // adress in header.data_size bec it keeps track of variables
+        if (!strcmp(opcode, ".fill") && !isNumber(arg0)) {
+            if(!isDupeSymbol(label, symbolTable) && arg0[0] >= 'A' && arg0[0] <= 'Z'){
+                addToSymbolTable(label, 'U', 0); // temporary U and 0
+            }
+            if(!isDupeRelocation(label, relocationTable)){
+                addToRelocationTable(header.data_size, opcode, arg0);
+            }
+
+        }
+        // if .fill increment data
+        // else increment text bc instructions
+        if(!strcmp(opcode, ".fill")){
+            header.data_size++;
+        } else {
+            header.text_size++;
+        }
+
 
 
     }
@@ -146,6 +190,27 @@ int main(int argc, char **argv) {
     printHexToFile(outFilePtr, 123);
     return(0);
 }
+// my funcs begin
+void addToSymbolTable(char *label, char type, int address){
+    //FILL
+
+}
+void addToRelocationTable(int address, char *opcode, char *label){
+    //FILL
+
+}
+
+bool isDupeSymbol(char *label, Symbol *symbolTable){
+    // FILL
+    return false;
+} 
+
+bool isDupeRelocation(char *label, Relocation *relocationTable){
+    // FILL
+    return false;
+} 
+
+// my fucs end
 
 /*
 * NOTE: The code defined below is not to be modifed as it is implemented correctly.
